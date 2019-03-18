@@ -4,25 +4,27 @@ import numpy as np
 
 
 class Model:
-    def __init__(self,n_classes,n_views, module_path, v_cands, batch_size, learning_rate = 0.05, decay_factor = 0.9, decay_steps = 1e100, weight_decay = 0.005):
-        self.n_classes = n_classes
-        self.n_views = n_views
-        self.module_path = module_path
-        self.v_cands = np.load(v_cands)
-        self.batch_size = batch_size
-        self.n_objects = int(batch_size/n_views)
-        self.indexes = self.indexes_to_gather(self.v_cands,batch_size,n_views)
+    def __init__(self, data, config, learning_rate = 0.05, decay_factor = 0.9, decay_steps = 1e100, weight_decay = 0.005):
+        self.data = data
+        self.n_classes = data.n_classes
+        self.n_objects = data.n_objects
+        self.n_views = config["n_views"]
+        self.module_path = config["module_path"]
+        self.v_cands = np.load(config["v_cands"])
+        self.batch_size = config["batch_size"]
+        self.n_images = self.batch_size*self.n_views
+        self.indexes = self.indexes_to_gather(self.v_cands,self.n_objects)
         self.n_cands = self.v_cands.shape[0]
-        self.weight_decay = weight_decay
-        self.decay_steps = decay_steps
-        self.decay_factor = decay_factor
-        self.learning_rate = learning_rate
+
+        self.weight_decay = config["weight_decay"]
+        self.decay_steps = config["decay_steps"]
+        self.decay_factor = config["decay_factor"]
+        self.learning_rate = config["learning_rate"]
         self.init_global_step()
         
-    def indexes_to_gather(self,v_cands,batch_size,n_views):
+    def indexes_to_gather(self,v_cands,n_objects):
         
         # n_objects,n_views_per_obj,n_views,n_classes+1
-        n_objects = int(batch_size/n_views)
         
         candidate_indexes = []
         
@@ -43,12 +45,12 @@ class Model:
         with tf.variable_scope('global_step'):
             self.global_step_tensor = tf.Variable(0, trainable=False, name='global_step')
         
-    def build_model(self):
+    def build_model(self, next_element):
 
         
         module = hub.Module(self.module_path, trainable= True)
         self.height, self.width =  hub.get_expected_image_size(module)
-        self.input = tf.placeholder(tf.float32, [None, self.height, self.width, 3])
+        self.input = tf.reshape(self.data.next_element, [None, self.height, self.width, 3])
         self.labels = tf.placeholder(tf.int32,[None])
         
         

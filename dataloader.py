@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+import glob
 from sklearn.preprocessing import LabelEncoder
 
 def prepare_input_txt(directory, train = True):
@@ -35,6 +36,9 @@ class Dataloader:
         self.prefetch_buffer_size = prefetch_buffer_size
         self.batch_size = config["batch_size"]
         self.n_views = config["n_views"]
+        self.n_epochs = config["n_epochs"]
+
+        self.build_pipeline()
 
     def get_image_path(self):
         train_dir = os.path.join(self.data_dir,'*/train/*')
@@ -60,12 +64,10 @@ class Dataloader:
 
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
+        dataset = dataset.repeat(self.n_epochs)
         dataset = dataset.shuffle(self.shuffe_buffer_size)
-        dataset = dataset.repeat()
-        dataset.
+        dataset = dataset.batch(self.batch_size)
         #TODO
-
-
         return dataset
 
     
@@ -113,12 +115,17 @@ class Dataloader:
         training_dataset = self.preprocess_dataset(training_dataset)
 
 
-        handle = tf.placeholder(tf.string, shape = [])
-        iterator = tf.data.Iterator.from_String_handle(handle,training_dataset.output_types, training_dataset.output_shapes)
-        next_element = iterator.get_next()
+        self.handle = tf.placeholder(tf.string, shape = [])
+        iterator = tf.data.Iterator.from_string_handle(self.handle,training_dataset.output_types, training_dataset.output_shapes)
+        self.next_element = iterator.get_next()
 
-        training_handle = sess.run(training_iterator.string_handle())
-        testing_handle = sess.run(testing_iterator.string_handle())
+        self.training_handle = self.sess.run(training_iterator.string_handle())
+        self.testing_handle = self.sess.run(testing_iterator.string_handle())
+
+        self.training_initializer = training_iterator.initializer
+        self.testing_initializer = testing_iterator.initializer
+
+        return self.next_element
 
 
 
