@@ -8,14 +8,15 @@ def prepare_input_txt(directory, train = True):
 
     labels = []
     image_paths = glob.glob(directory)
-    labels_file = open("labels.txt","w")
+    print(len(image_paths))
+    image_paths = list(map(lambda s: os.path.abspath(s).replace("\\","/"), image_paths))
     if train:
-        f = open("train_input_txt", "w")
+        f = open("train_input.txt", "w")
     else:
-        f = open("test_input_txt", "w")
+        f = open("test_input.txt", "w")
     
-    f.writelines(image_paths)
-    labels_file.writelines(np.unique(labels))
+    f.write("\n".join(image_paths))
+    f.close()
 
 class Dataloader:
     
@@ -24,34 +25,40 @@ class Dataloader:
                  config,
                  shuffle_buffer_size = 1000,
                  prefetch_buffer_size = 1000,
-                 image_height = 256,
-                 image_width = 256,
+                 image_height = 224,
+                 image_width = 224,
                  seed = 42):
         tf.set_random_seed(seed)
         
         self.image_height, self.image_width = image_height, image_width
         self.sess = sess
-        self.data_dir = config["data_dir"]
+        #self.data_dir = config["data_dir"]
+        self.train_images_path = config["train_images_path"]
+        self.test_images_path = config["test_images_path"]
         self.shuffe_buffer_size = shuffle_buffer_size
         self.prefetch_buffer_size = prefetch_buffer_size
         self.batch_size = config["batch_size"]
+        self.n_objects = config["batch_size"]
         self.n_views = config["n_views"]
+        self.n_images = self.n_objects*self.n_views
         self.n_epochs = config["n_epochs"]
 
+        self.get_image_path()
         self.build_pipeline()
 
     def get_image_path(self):
-        train_dir = os.path.join(self.data_dir,'*/train/*')
-        test_dir = os.path.join(self.data_dir, '*/test/*')
-        
-        if not os.path.isdir(train_dir) or not os.path.isdir(test_dir):
-            os.mkdir(train_dir)
-            os.mkdir(test_dir)
+        #train_dir = os.path.join(self.data_dir,'*/train/*')
+        #test_dir = os.path.join(self.data_dir, '*/test/*')
+    
+
+        #if not os.path.isdir(train_dir) or not os.path.isdir(test_dir):
+        #    os.mkdir(train_dir)
+        #    os.mkdir(test_dir)
         
         if not os.path.isfile("train_input.txt"):
-            prepare_input_txt(train_dir, True)
+            prepare_input_txt(self.train_images_path, True)
         if not os.path.isfile("test_input.txt"):
-            prepare_input_txt(test_dir, False)
+            prepare_input_txt(self.test_images_path, False)
 
     def preprocess_dataset(self, dataset):
         
@@ -60,7 +67,7 @@ class Dataloader:
             image_decoded = tf.image.decode_png(image_string)
             image_resized = tf.image.resize_images(image_decoded, [self.image_width,self.image_height])
             
-            return image_resized
+            return image_resized, label
 
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
@@ -73,14 +80,16 @@ class Dataloader:
     
 
     def parse_class_from_path(self,path):
-        return path.replace("\\","/").split("/")[-1].split("_")[0]
-
+        parsed = path.replace("\\","/").split("/")[-1].split("_")[:-2]
+        return "_".join(parsed)
 
     def build_pipeline(self):
 
         #Read file with labels for encoding
         f_labels = open("labels.txt", "r")
-        self.labels = np.unique(f_labels.readlines())
+        self.labels = np.unique(f_labels.read().splitlines())
+        print(self.labels)
+        self.n_classes = len(self.labels)
         self.label_encoder = LabelEncoder()
         self.label_encoder.fit(self.labels)
         f_labels.close()
@@ -88,14 +97,15 @@ class Dataloader:
         #Open text files with the paths to the images
         f_train = open("train_input.txt","r")
         f_test = open("test_input.txt","r")
-        training_paths = f_train.readlines()
-        testing_paths = f_test.readlines()
+        training_paths = f_train.read().splitlines()
+        testing_paths = f_test.read().splitlines()
 
+        self.training_set_size = len(training_paths)
         #Create tensors
         x_train_tensor = tf.convert_to_tensor(training_paths)
         x_test_tensor = tf.convert_to_tensor(testing_paths)
-        y_train_tensor = tf.convert_to_tensor(self.label_encoder.transform(map(lambda x: self.parse_class_from_path(x),training_paths)))
-        y_test_tensor = tf.convert_to_tensor(self.label_encoder.transform(map(lambda x: self.parse_class_from_path(x),testing_paths)))
+        y_train_tensor = tf.convert_to_tensor(self.label_encoder.transform(list(map(lambda x: self.parse_class_from_path(x),training_paths))))
+        y_test_tensor = tf.convert_to_tensor(self.label_encoder.transform(list(map(lambda x: self.parse_class_from_path(x),testing_paths))))
 
         #Create training and testing tf.Datasets from tensors
         x_train = tf.data.Dataset.from_tensor_slices(x_train_tensor)
@@ -107,23 +117,26 @@ class Dataloader:
         training_dataset = tf.data.Dataset.zip((x_train,y_train))
         testing_dataset = tf.data.Dataset.zip((x_test,y_test))
 
+        
+        training_dataset = self.preprocess_dataset(training_dataset)
+        testing_dataset = self.preprocess_dataset(testing_dataset)
+
         #training iterator
         training_iterator = tf.data.Iterator.from_structure(training_dataset.output_types, training_dataset.output_shapes)
         #testing iterator
         testing_iterator = tf.data.Iterator.from_structure(testing_dataset.output_types, testing_dataset.output_shapes)
 
-        training_dataset = self.preprocess_dataset(training_dataset)
 
 
         self.handle = tf.placeholder(tf.string, shape = [])
         iterator = tf.data.Iterator.from_string_handle(self.handle,training_dataset.output_types, training_dataset.output_shapes)
-        self.next_element = iterator.get_next()
+        self.next_element = iterator.get_next() 
 
         self.training_handle = self.sess.run(training_iterator.string_handle())
         self.testing_handle = self.sess.run(testing_iterator.string_handle())
 
-        self.training_initializer = training_iterator.initializer
-        self.testing_initializer = testing_iterator.initializer
+        self.training_initializer = training_iterator.make_initializer(training_dataset)
+        self.testing_initializer = testing_iterator.make_initializer(testing_dataset)
 
         return self.next_element
 

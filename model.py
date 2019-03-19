@@ -4,8 +4,9 @@ import numpy as np
 
 
 class Model:
-    def __init__(self, data, config, learning_rate = 0.05, decay_factor = 0.9, decay_steps = 1e100, weight_decay = 0.005):
+    def __init__(self, sess, data, config, learning_rate = 0.05, decay_rate = 0.9, decay_steps = 1e100, weight_decay = 0.005):
         self.data = data
+        self.sess = sess
         self.n_classes = data.n_classes
         self.n_objects = data.n_objects
         self.n_views = config["n_views"]
@@ -18,8 +19,9 @@ class Model:
 
         self.weight_decay = config["weight_decay"]
         self.decay_steps = config["decay_steps"]
-        self.decay_factor = config["decay_factor"]
+        self.decay_rate = config["decay_rate"]
         self.learning_rate = config["learning_rate"]
+        self.momentum = config["momentum"]
         self.init_global_step()
         
     def indexes_to_gather(self,v_cands,n_objects):
@@ -38,21 +40,27 @@ class Model:
             candidate_indexes.append(obj_cand)
             
         #tensor of shape [n_objs, n_cands, n_views,3]
-        return tf.convert_to_tensor(candidate_indexes, tf.int32)
+        return tf.convert_to_tensor(candidate_indexes, tf.int64)
     
     def init_global_step(self):
         # DON'T forget to add the global step tensor to the tensorflow trainer
         with tf.variable_scope('global_step'):
             self.global_step_tensor = tf.Variable(0, trainable=False, name='global_step')
+        self.sess.run(self.global_step_tensor.initializer)
         
-    def build_model(self, next_element):
+        
+    def build_model(self):
 
         
         module = hub.Module(self.module_path, trainable= True)
         self.height, self.width =  hub.get_expected_image_size(module)
-        self.input = tf.reshape(self.data.next_element, [None, self.height, self.width, 3])
-        self.labels = tf.placeholder(tf.int32,[None])
+        print(self.height, self.width, "AAAA")
+        self.input, self.labels = self.data.next_element 
         
+        print(self.input)
+        print(self.labels)
+        self.input = tf.reshape(self.input, [-1, self.height, self.width, 3])
+        self.labels = tf.reshape(self.labels, [-1])
         
         
         self.hidden_layer = module(self.input)
@@ -105,7 +113,7 @@ class Model:
                 #Sum the loss of i_view
                 self.loss -= self.log_p[:,:,:,-1]
                 #Discount the loss of i_view for the best view point
-                discount_iview = tf.concat([(self.n_classes+1)*tf.ones([self.n_objects, self.n_views,1], dtype = tf.int32),gather_candidate_log_prob[...,:-1]], axis = -1)
+                discount_iview = tf.concat([(self.n_classes+1)*tf.ones([self.n_objects, self.n_views,1], dtype = tf.int64),gather_candidate_log_prob[...,:-1]], axis = -1)
                 self.discount_iview = discount_iview
                 self.loss += tf.reduce_sum(tf.gather_nd(self.log_p,discount_iview))
 
@@ -119,20 +127,20 @@ class Model:
             
             # Get gradients of all trainable variables
             gradients = tf.gradients(self.loss, var_list)
-            gradients = list(zip(gradients, var_list))
+            
             
             # learning rate
-            decay_steps = 10
             self.learning_rate = tf.train.exponential_decay(self.learning_rate,
                                                             self.global_step_tensor,
                                                             self.decay_steps,
-                                                            self.decay_factor,
+                                                            self.decay_rate,
                                                             staircase=True)
             
             # setting different training ops for each part of the network
             # we set a smaller lr for the layers in the middle
             var_list_bottom = [self.logits]
             gradients = tf.gradients(self.loss, var_list)
+
             """
             bottom_variables = 
             grads_bottom = gradients[:-self.VARS_TO_TRAIN]
@@ -141,6 +149,12 @@ class Model:
             train_op_top = optimizer_top.apply_gradients(zip(grads_top, var_list))
             self.train_step = tf.group(train_op_bottom, train_op_top)
             """
+
+            optimizer = tf.train.MomentumOptimizer(self.learning_rate,self.momentum)
+            training_op = optimizer.apply_gradients(zip(gradients, var_list), global_step = self.global_step_tensor)
+            self.train_step = training_op
+
+            self.sess.run(tf.global_variables_initializer())
     def select_best(self,fc8):
         #shape batch_size x P matrix
         fc8 =  tf.reshape(fc8,[-1, self.n_views, self.n_classes + 1])
@@ -156,4 +170,4 @@ class Model:
         score =  tf.reshape(score,[self.n_objects,self.n_views, self.n_views, self.n_classes])
         self.score = tf.reduce_sum(tf.reduce_max(score, axis = -2),axis = -2)
         best_classes = tf.argmax(self.score,axis = -1)
-        return tf.cast(best_classes,dtype = tf.int32)
+        return tf.cast(best_classes,dtype = tf.int64)
