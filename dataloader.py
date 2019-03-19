@@ -23,8 +23,8 @@ class Dataloader:
     def __init__(self,
                  sess,
                  config,
-                 shuffle_buffer_size = 1000,
-                 prefetch_buffer_size = 1000,
+                 shuffle_buffer_size = 10,
+                 prefetch_buffer_size = 10,
                  image_height = 224,
                  image_width = 224,
                  seed = 42):
