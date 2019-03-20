@@ -41,7 +41,7 @@ class Dataloader:
         self.n_objects = config["batch_size"]
         self.n_views = config["n_views"]
         self.n_images = self.n_objects*self.n_views
-        self.n_epochs = config["n_epochs"]
+        self.epochs = config["epochs"]
 
         self.get_image_path()
         self.build_pipeline()
@@ -71,9 +71,10 @@ class Dataloader:
 
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
-        dataset = dataset.repeat(self.n_epochs)
+        dataset = dataset.repeat(self.epochs)
         dataset = dataset.shuffle(self.shuffe_buffer_size)
         dataset = dataset.batch(self.batch_size)
+        dataset = dataset.prefetch(self.prefetch_buffer_size)
         #TODO
         return dataset
 
