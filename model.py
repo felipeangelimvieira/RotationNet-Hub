@@ -101,6 +101,7 @@ class Model:
         
         
         var_list = tf.trainable_variables()
+        var_list = tf.trainable_variables()[-2:]
         # Train op
         with tf.name_scope("train"):
             #loss function
@@ -110,14 +111,19 @@ class Model:
                 #shape [n_objects,n_views,3]
                 gather_candidate_log_prob = tf.gather_nd(self.gather_candidate_scores,best_candidates)
                 self.loss = -tf.reduce_sum(tf.gather_nd(self.log_p,gather_candidate_log_prob))
+
                 #Sum the loss of i_view
-                self.loss -= self.log_p[:,:,:,-1]
+                self.loss -= tf.reduce_sum(self.log_p[:,:,:,-1])
                 #Discount the loss of i_view for the best view point
                 discount_iview = tf.concat([(self.n_classes+1)*tf.ones([self.n_objects, self.n_views,1], dtype = tf.int64),gather_candidate_log_prob[...,:-1]], axis = -1)
                 self.discount_iview = discount_iview
                 self.loss += tf.reduce_sum(tf.gather_nd(self.log_p,discount_iview))
 
-                
+                self.loss1 = -tf.gather_nd(self.log_p,gather_candidate_log_prob)
+                self.loss2 = self.loss1 -  tf.reduce_mean(self.log_p[:,:,:,-1], axis = -1)
+                self.loss3 = self.loss2 + tf.gather_nd(self.log_p,discount_iview)
+                self.loss = self.loss3
+                self.loss = tf.reduce_mean(self.loss)
                 #l2 loss (improves the performance)
                 for var in var_list:
                     self.loss += tf.nn.l2_loss(var)*self.weight_decay

@@ -66,8 +66,11 @@ class Dataloader:
             image_string = tf.read_file(filename)
             image_decoded = tf.image.decode_png(image_string)
             image_resized = tf.image.resize_images(image_decoded, [self.image_width,self.image_height])
-            
-            return image_resized, label
+            image = tf.image.convert_image_dtype(image_resized,tf.float32)/255
+            image = tf.clip_by_value(image,0,1)
+            image = tf.subtract(image, 0.5)
+            image = tf.multiply(image, 2.0)
+            return image, label
 
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
@@ -84,6 +87,16 @@ class Dataloader:
         parsed = path.replace("\\","/").split("/")[-1].split("_")[:-2]
         return "_".join(parsed)
 
+    def shuffle_image_paths(self,path_lines):
+        assert(len(path_lines)%self.n_views == 0)
+
+        path_lines = np.array(path_lines)
+        path_lines = path_lines.reshape((-1,self.n_views))
+
+        order = np.arange(len(path_lines))
+        np.random.shuffle(order)
+        return path_lines[order].reshape((-1,))
+        
     def build_pipeline(self):
 
         #Read file with labels for encoding
@@ -99,8 +112,10 @@ class Dataloader:
         f_train = open("train_input.txt","r")
         f_test = open("test_input.txt","r")
         training_paths = f_train.read().splitlines()
+        training_paths = self.shuffle_image_paths(training_paths)
         testing_paths = f_test.read().splitlines()
-
+        testing_paths = self.shuffle_image_paths(testing_paths)
+        
         self.training_set_size = len(training_paths)
         #Create tensors
         x_train_tensor = tf.convert_to_tensor(training_paths)
