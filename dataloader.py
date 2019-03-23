@@ -117,6 +117,8 @@ class Dataloader:
         testing_paths = self.shuffle_image_paths(testing_paths)
         
         self.training_set_size = len(training_paths)
+        self.testing_set_size = len(training_paths)
+        
         #Create tensors
         x_train_tensor = tf.convert_to_tensor(training_paths)
         x_test_tensor = tf.convert_to_tensor(testing_paths)

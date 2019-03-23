@@ -64,12 +64,12 @@ class Model:
         
         
         self.hidden_layer = module(self.input)
-        self.logits = tf.layers.dense(self.hidden_layer, (self.n_classes+1)*self.n_views, activation= None)
+        self.logits = tf.layers.dense(self.hidden_layer, (self.n_classes+1)*self.n_views, activation= None), name = "logits")
         
         #n_objects_per_batch,n_views_in_batch,n_views_logits,n_classes+1
         self.probs = tf.nn.softmax(tf.reshape(self.logits, [self.n_objects,self.n_views,self.n_views,self.n_classes+1]), axis = -1)
         self.log_p = tf.math.log(self.probs)
-        print(self.log_p)
+        
         self.scores = self.log_p[...,:-1] - tf.tile(self.log_p[...,-1:],[1,1,1,self.n_classes])
         
         """
@@ -101,29 +101,26 @@ class Model:
         
         
         var_list = tf.trainable_variables()
-        var_list = tf.trainable_variables()[-2:]
+        
         # Train op
         with tf.name_scope("train"):
             #loss function
             with tf.name_scope("loss"):
                 self.labels = tf.reshape(self.labels,[-1,self.n_views])[:,0]
-                #Calculate cross-entropy loss of best view candidates
+                #Indexes to calculate cross-entropy loss of best view candidates
                 #shape [n_objects,n_views,3]
                 gather_candidate_log_prob = tf.gather_nd(self.gather_candidate_scores,best_candidates)
-                self.loss = -tf.reduce_sum(tf.gather_nd(self.log_p,gather_candidate_log_prob))
-
-                #Sum the loss of i_view
-                self.loss -= tf.reduce_sum(self.log_p[:,:,:,-1])
+                
+                #Indexes to dum the loss of i_view
                 #Discount the loss of i_view for the best view point
                 discount_iview = tf.concat([(self.n_classes+1)*tf.ones([self.n_objects, self.n_views,1], dtype = tf.int64),gather_candidate_log_prob[...,:-1]], axis = -1)
                 self.discount_iview = discount_iview
-                self.loss += tf.reduce_sum(tf.gather_nd(self.log_p,discount_iview))
-
-                self.loss1 = -tf.gather_nd(self.log_p,gather_candidate_log_prob)
-                self.loss2 = self.loss1 -  tf.reduce_mean(self.log_p[:,:,:,-1], axis = -1)
-                self.loss3 = self.loss2 + tf.gather_nd(self.log_p,discount_iview)
-                self.loss = self.loss3
+               
+                self.loss = -tf.gather_nd(self.log_p,gather_candidate_log_prob)
+                self.loss = self.loss -  tf.reduce_mean(self.log_p[:,:,:,-1], axis = -1)
+                self.loss = self.loss + tf.gather_nd(self.log_p,discount_iview)
                 self.loss = tf.reduce_mean(self.loss)
+
                 #l2 loss (improves the performance)
                 for var in var_list:
                     self.loss += tf.nn.l2_loss(var)*self.weight_decay
@@ -147,6 +144,7 @@ class Model:
             var_list_bottom = [self.logits]
             gradients = tf.gradients(self.loss, var_list)
 
+
             """
             bottom_variables = 
             grads_bottom = gradients[:-self.VARS_TO_TRAIN]
@@ -159,8 +157,9 @@ class Model:
             optimizer = tf.train.MomentumOptimizer(self.learning_rate,self.momentum)
             training_op = optimizer.apply_gradients(zip(gradients, var_list), global_step = self.global_step_tensor)
             self.train_step = training_op
-
             self.sess.run(tf.global_variables_initializer())
+
+            
     def select_best(self,fc8):
         #shape batch_size x P matrix
         fc8 =  tf.reshape(fc8,[-1, self.n_views, self.n_classes + 1])
