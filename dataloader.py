@@ -75,7 +75,7 @@ class Dataloader:
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
         dataset = dataset.repeat(self.epochs)
-        dataset = dataset.shuffle(self.shuffe_buffer_size)
+#        dataset = dataset.shuffle(self.shuffe_buffer_size)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(self.prefetch_buffer_size)
         #TODO
@@ -113,6 +113,7 @@ class Dataloader:
         f_test = open("test_input.txt","r")
         training_paths = f_train.read().splitlines()
         training_paths = self.shuffle_image_paths(training_paths)
+        self.training_paths = training_paths
         testing_paths = f_test.read().splitlines()
         testing_paths = self.shuffle_image_paths(testing_paths)
         
