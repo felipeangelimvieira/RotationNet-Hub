@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Model:
-    def __init__(self, sess, data, config, learning_rate = 0.05, decay_rate = 0.9, decay_steps = 1e100, weight_decay = 0.005):
+    def __init__(self, sess, data, config, learning_rate = 0.05, decay_rate = 0.9, decay_steps = 1e100, weight_decay = 0.005, load = True):
         self.data = data
         self.sess = sess
         self.n_classes = data.n_classes
@@ -13,6 +13,7 @@ class Model:
         self.module_path = config["module_path"]
         self.v_cands = np.load(config["v_cands"])
         self.batch_size = config["batch_size"]
+        self.checkpoint_dir = config["checkpoint_dir"]
         self.n_images = self.batch_size*self.n_views
         self.indexes = self.indexes_to_gather(self.v_cands,self.n_objects)
         self.n_cands = self.v_cands.shape[0]
@@ -27,6 +28,9 @@ class Model:
         self.max_to_keep = config["max_to_keep"]
         self.init_global_step()
         self.init_saver()
+        if load:
+            self.load(self.sess)
+        
 
     def indexes_to_gather(self,v_cands,n_objects):
         
@@ -175,4 +179,19 @@ class Model:
         return tf.cast(best_classes,dtype = tf.int64)
 
     def init_saver(self):
-        self.saver = tf.train.Saver(max_to_keep = self.max_to_keep)
+        self.saver = tf.train.Saver(var_list = tf.global_variables(), max_to_keep = self.max_to_keep)
+
+     # save function that saves the checkpoint in the path defined in the config file
+    def save(self, sess):
+        print("Saving model...")
+        self.saver.save(sess, self.checkpoint_dir, self.global_step_tensor)
+        print("Model saved")
+
+    # load latest checkpoint from the experiment path defined in the config file
+    def load(self, sess):
+        latest_checkpoint = tf.train.latest_checkpoint(self.checkpoint_dir)
+        print("Latest checkpoint:",latest_checkpoint)
+        if latest_checkpoint:
+            print("Loading model checkpoint {} ...\n".format(latest_checkpoint))
+            self.saver.restore(sess, latest_checkpoint)
+            print("Model loaded")

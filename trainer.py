@@ -19,11 +19,17 @@ class Trainer:
     def train(self):
         
         # Initialize training handler
+
         self.train_op = self.model.train_step_warmup
+        global_step = self.sess.run(self.model.global_step_tensor)
+        if global_step > self.warmup_steps:
+            self.train_op = self.model.train_step
+
         self.sess.run(self.data.training_initializer)
         for _ in range(self.epochs):
             self.train_epoch()
             self.test()
+            self.model.save(self.sess)
             
 
     def train_step(self):
