@@ -1,3 +1,4 @@
 modelnet40v2png_ori4
 __pycache__
 .ipynb_checkpoints
+checkpoints/
