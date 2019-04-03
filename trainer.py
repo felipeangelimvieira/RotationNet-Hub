@@ -5,10 +5,11 @@ from sklearn.metrics import precision_recall_fscore_support
 
 class Trainer:
 
-    def __init__(self,sess,model,data, config):
+    def __init__(self,sess, model, data, logger, config):
         self.model = model
         self.data = data
         self.sess = sess
+        self.logger = logger
         self.epochs = config["epochs"]
         self.warmup_epochs = config["warmup_epochs"]
         self.batch_size = config["batch_size"]
@@ -78,6 +79,12 @@ class Trainer:
 
         training_precision, training_recall, training_f1 = self.compute_precision_recall_fscore(training_groundtruth, training_predictions)
         print(training_precision, training_recall, training_f1)
+        
+        summaries_dict = { "precision" : training_precision,
+                         "recall" : training_recall,
+                         "f1" : training_f1,
+                         "loss": np.mean(training_loss)}
+        self.logger.summarize(global_step,summaries_dict= summaries_dict)
 
     def test(self):
         
@@ -94,3 +101,9 @@ class Trainer:
 
         testing_precision, testing_recall, testing_f1 =  self.compute_precision_recall_fscore(testing_groundtruth, testing_predictions)
         print(testing_precision, testing_recall, testing_f1)
+        
+        summaries_dict = { "precision" : testing_precision,
+                         "recall" : testing_recall,
+                         "f1" : testing_f1,
+                         "loss": np.mean(testing_loss)}
+        self.logger.summarize(self.model.global_step_tensor.eval(self.sess),summaries_dict= summaries_dict, summarizer = "test")

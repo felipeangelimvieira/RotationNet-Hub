@@ -109,7 +109,6 @@ class Model:
         
         
         var_list = tf.trainable_variables()[-2:]
-        var_list_base = tf.trainable_variables()[:-2]
         # Train op
         with tf.name_scope("train"):
             #loss function
@@ -136,8 +135,17 @@ class Model:
                 self.predictions = self.select_best(self.logits)
                 
             
+
+            
+            # setting different training ops for each part of the network
             # Get gradients of all trainable variables
             gradients = tf.gradients(self.loss, var_list)
+
+            optimizer = tf.train.MomentumOptimizer(self.warmup_learning_rate,self.momentum)
+            training_op = optimizer.apply_gradients(zip(gradients, var_list), global_step = self.global_step_tensor)
+            self.train_step_warmup = training_op
+
+            var_list = tf.trainable_variables()
             # learning rate
             self.learning_rate = tf.train.exponential_decay(self.learning_rate,
                                                             self.global_step_tensor,
@@ -145,18 +153,9 @@ class Model:
                                                             self.decay_rate,
                                                             staircase=True)
             
-            # setting different training ops for each part of the network
-            # we set a smaller lr for the layers in the middle
-            
             gradients = tf.gradients(self.loss, var_list)
-
             optimizer = tf.train.MomentumOptimizer(self.learning_rate,self.momentum)
             training_op = optimizer.apply_gradients(zip(gradients, var_list), global_step = self.global_step_tensor)
-            self.train_step_warmup = training_op
-
-            gradients = tf.gradients(self.loss, var_list_base)
-            optimizer = tf.train.MomentumOptimizer(self.warmup_learning_rate,self.momentum)
-            training_op = optimizer.apply_gradients(zip(gradients, var_list_base), global_step = self.global_step_tensor)
             self.train_step = training_op
             self.sess.run(tf.global_variables_initializer())
 

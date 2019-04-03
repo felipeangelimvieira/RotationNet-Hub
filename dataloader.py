@@ -5,6 +5,20 @@ import glob
 from sklearn.preprocessing import LabelEncoder
 
 def prepare_input_txt(directory, train = True):
+    """
+    Create a text file containing paths to the images
+
+    Parameters
+    ----------
+    directory: string
+        A string following glob pattern specifying the files' path.
+        For example, "path/to/train/files/*"
+    train: boolean
+        If directory input concerns the path to training images, saves
+        the paths to "train_input.txt". If false, it creates the file
+        "test_input.txt"
+        
+    """
 
     labels = []
     image_paths = glob.glob(directory)
@@ -19,15 +33,42 @@ def prepare_input_txt(directory, train = True):
     f.close()
 
 class Dataloader:
+    """ This Dataloader build a tf.data pipeline and preprocess
+     the images
+    
+    
+    """
     
     def __init__(self,
                  sess,
                  config,
-                 shuffle_buffer_size = 10,
+                 shuffle_buffer_size = 0,
                  prefetch_buffer_size = 10,
                  image_height = 224,
                  image_width = 224,
                  seed = 42):
+        """
+        Initialize a Dataloader instance
+
+        Parameters
+        ----------
+
+        sess: tf.Session,
+            The tensorflow session
+        config: dict,
+            A dictionary containing the parameters for building
+            and training the model. See README.md for more information
+            about it.
+        shuffle_buffer_size: int
+            Buffer size for shuffling the objects in dataset. Set this value to 0
+            if you don't want shuffling. The number of images in the buffer
+            will be equals to buffer size*number of views. For more information,
+            see https://www.tensorflow.org/api_docs/python/tf/data/Dataset.
+        prefetch_buffer_size: int,
+            Number of batches to prefetch. For more information,
+            see https://www.tensorflow.org/api_docs/python/tf/data/Dataset.
+        """
+                
         tf.set_random_seed(seed)
         
         self.image_height, self.image_width = image_height, image_width
@@ -75,7 +116,8 @@ class Dataloader:
         dataset = dataset.map(_parse_image_from_path)
         dataset = dataset.batch(self.n_views)
         dataset = dataset.repeat(self.epochs)
-#        dataset = dataset.shuffle(self.shuffe_buffer_size)
+        if self.shuffe_buffer_size > 0:
+            dataset = dataset.shuffle(self.shuffe_buffer_size)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(self.prefetch_buffer_size)
         #TODO
