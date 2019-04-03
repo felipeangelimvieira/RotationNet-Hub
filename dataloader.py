@@ -33,9 +33,9 @@ def prepare_input_txt(directory, train = True):
     f.close()
 
 class Dataloader:
-    """ This Dataloader build a tf.data pipeline and preprocess
-     the images
-    
+    """
+    This Dataloader build a tf.data pipeline and preprocess
+    the images
     
     """
     
@@ -44,8 +44,6 @@ class Dataloader:
                  config,
                  shuffle_buffer_size = 0,
                  prefetch_buffer_size = 10,
-                 image_height = 224,
-                 image_width = 224,
                  seed = 42):
         """
         Initialize a Dataloader instance
@@ -64,16 +62,17 @@ class Dataloader:
             if you don't want shuffling. The number of images in the buffer
             will be equals to buffer size*number of views. For more information,
             see https://www.tensorflow.org/api_docs/python/tf/data/Dataset.
-        prefetch_buffer_size: int,
+        prefetch_buffer_size: int
             Number of batches to prefetch. For more information,
             see https://www.tensorflow.org/api_docs/python/tf/data/Dataset.
+        seed: int
+            Random seed
         """
                 
         tf.set_random_seed(seed)
         
-        self.image_height, self.image_width = image_height, image_width
+        self.image_height, self.image_width = config["image_height"], config["image_width"]
         self.sess = sess
-        #self.data_dir = config["data_dir"]
         self.train_images_path = config["train_images_path"]
         self.test_images_path = config["test_images_path"]
         self.shuffe_buffer_size = shuffle_buffer_size
@@ -88,13 +87,10 @@ class Dataloader:
         self.build_pipeline()
 
     def get_image_path(self):
-        #train_dir = os.path.join(self.data_dir,'*/train/*')
-        #test_dir = os.path.join(self.data_dir, '*/test/*')
-    
-
-        #if not os.path.isdir(train_dir) or not os.path.isdir(test_dir):
-        #    os.mkdir(train_dir)
-        #    os.mkdir(test_dir)
+        """
+        Creates train_input.txt and test_input.txt if they don't
+        exist
+        """
         
         if not os.path.isfile("train_input.txt"):
             prepare_input_txt(self.train_images_path, True)
@@ -102,7 +98,16 @@ class Dataloader:
             prepare_input_txt(self.test_images_path, False)
 
     def preprocess_dataset(self, dataset):
-        
+        """
+        Preprocess the tensorflow Dataset, loading the image from
+        the given paths, apply resizing, prefetching, and all
+        transformations.
+
+        Parameters
+        ----------
+        dataset: tf.Dataset
+            A tensorflow dataset, containing a tuple (path, label)
+        """
         def _parse_image_from_path(filename,label):
             image_string = tf.read_file(filename)
             image_decoded = tf.image.decode_png(image_string)
@@ -126,20 +131,58 @@ class Dataloader:
     
 
     def parse_class_from_path(self,path):
+        """
+        Parse class from image path. The images should be labeled as:
+        category_xxxx_yy, where x represents the object's number and yy
+        the view number.
+
+        Parameters
+        ----------
+        path: string,
+            Path to an image
+
+        Returns
+        ---------
+        x: string
+            The category of the image
+        """
         parsed = path.replace("\\","/").split("/")[-1].split("_")[:-2]
         return "_".join(parsed)
 
     def shuffle_image_paths(self,path_lines):
+        """
+        Shuffles the image paths
+
+        Parameters
+        ----------
+        path_lines: list
+            List of paths to the images. This list is obtained from
+            reading the lines inside train_input.txt or test_input.txt
+
+        Returns
+        ---------
+        shuffled_paths: list
+            Shuffled images list
+        """
+
         assert(len(path_lines)%self.n_views == 0)
 
         path_lines = np.array(path_lines)
         path_lines = path_lines.reshape((-1,self.n_views))
-
         order = np.arange(len(path_lines))
         np.random.shuffle(order)
+        
         return path_lines[order].reshape((-1,))
         
     def build_pipeline(self):
+        """
+        Build a tensorflow Dataset and a feedable iterator
+
+        Returns
+        ---------
+        next_element: a nested structure of tf.Tensor objects
+
+        """
 
         #Read file with labels for encoding
         f_labels = open("labels.txt", "r")
@@ -159,6 +202,7 @@ class Dataloader:
         testing_paths = f_test.read().splitlines()
         testing_paths = self.shuffle_image_paths(testing_paths)
         
+        #Training and testing set sizes
         self.training_set_size = len(training_paths)
         self.testing_set_size = len(training_paths)
         
@@ -178,7 +222,7 @@ class Dataloader:
         training_dataset = tf.data.Dataset.zip((x_train,y_train))
         testing_dataset = tf.data.Dataset.zip((x_test,y_test))
 
-        
+        #Decode image, cast to float, prefetch, etc
         training_dataset = self.preprocess_dataset(training_dataset)
         testing_dataset = self.preprocess_dataset(testing_dataset)
 
@@ -188,9 +232,10 @@ class Dataloader:
         testing_iterator = tf.data.Iterator.from_structure(testing_dataset.output_types, testing_dataset.output_shapes)
 
 
-
+        # Handle input iterators
         self.handle = tf.placeholder(tf.string, shape = [])
         iterator = tf.data.Iterator.from_string_handle(self.handle,training_dataset.output_types, training_dataset.output_shapes)
+        
         self.next_element = iterator.get_next() 
 
         self.training_handle = self.sess.run(training_iterator.string_handle())
