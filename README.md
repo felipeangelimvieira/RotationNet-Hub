@@ -1,7 +1,7 @@
 # RotationNet Hub
-A versatile implementation of RotationNet, using models from Tensorflow Hub.
+An unofficial implementation of RotationNet, using models from Tensorflow Hub.
 
-
+![RotationNet](img/paper_image.png)
 
 Asako Kanezaki, Yasuyuki Matsushita and Yoshifumi Nishida.
 **RotationNet: Joint Object Categorization and Pose Estimation Using Multiviews from Unsupervised Viewpoints.** 
