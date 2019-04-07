@@ -68,18 +68,6 @@ class Model:
         
         self.scores = self.log_p[...,:-1] - tf.tile(self.log_p[...,-1:],[1,1,1,self.n_classes])
         
-        """
-        Calculate the score for each view order candidate
-        Determine best view order candidate
-        
-        Create a gathering tensor to hook the scores for groundtruth label y
-        Last dimension of the gathering tensor is [object index, input image index, view candidate, label]
-        
-        We gather these values for every candidate, and create a matrix C of shape [n_objects,n_cands]
-        where C[i,j] is the final score for object i and view order candidate j
-        
-        Finally, we gather the best indexes in gathering tensor for calculating the loss
-        """
         tiled = tf.tile(tf.reshape(self.labels,[self.n_objects,-1]),[1,self.n_cands])
         tiled = tf.reshape(tiled,[self.n_objects,self.n_cands,self.config.n_views, 1])
         #tensor of shape [n_objs, n_cands, n_views,4]
