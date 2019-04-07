@@ -1,6 +1,8 @@
 # RotationNet Hub
 A versatile implementation of RotationNet, using models from Tensorflow Hub.
 
+
+
 Asako Kanezaki, Yasuyuki Matsushita and Yoshifumi Nishida.
 **RotationNet: Joint Object Categorization and Pose Estimation Using Multiviews from Unsupervised Viewpoints.** 
 *CVPR*, pp.5010-5019, 2018.
@@ -15,12 +17,18 @@ Asako Kanezaki, Yasuyuki Matsushita and Yoshifumi Nishida.
 
 ## Usage
 
+Download multiview images:
+
+```
+$ wget https://data.airc.aist.go.jp/kanezaki.asako/data/modelnet40v2png_ori4.tar; tar xvf modelnet40v2png_ori4.tar  
+```
+
 ### From command line
 
 Call train_rotationnet.py file.
 
 ```bash
-python train_rotationnet.py [-h] [--module_path MODULE_PATH]
+$ python train_rotationnet.py [-h] [--module_path MODULE_PATH]
                             [--train_images_path TRAIN_IMAGES_PATH]
                             [--test_images_path TEST_IMAGES_PATH]
                             [--image_height IMAGE_HEIGHT]
@@ -78,6 +86,9 @@ optional arguments:
 ### Jupyter notebook
 
 ```python
+
+# This config should give about 0.94 precision
+# on testing set after 30 epochs
 
 from src.model import Model
 from src.trainer import Trainer
