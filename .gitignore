@@ -1,7 +1,7 @@
 modelnet40v2png_ori4
 __pycache__
 .ipynb_checkpoints
-summary/*
+summary/
 *.index
 *.meta
 *.data-00000-of-00001
