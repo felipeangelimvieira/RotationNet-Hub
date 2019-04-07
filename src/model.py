@@ -9,6 +9,7 @@ class Model:
         self.sess = sess
         self.n_classes = data.n_classes
         self.n_objects = data.n_objects
+        self.config = config
         self.n_views = config["n_views"]
         self.module_path = config["module_path"]
         self.v_cands = np.load(config["v_cands"])
