@@ -15,7 +15,7 @@ Asako Kanezaki, Yasuyuki Matsushita and Yoshifumi Nishida.
 - numpy
 - tqdm
 
-## Usage
+## Usage example
 
 Download multiview images:
 
