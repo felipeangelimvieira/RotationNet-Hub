@@ -42,11 +42,14 @@ argparser.add_argument("--summary_dir", type = str, help= "Path for saving summa
                         default = "summary/")
 argparser.add_argument("--max_to_keep", type = int, help = "Number of checkpoints to keep",
                         default = 1)
+argparser.add_argument("--v_cands", type = str, help = "Path to .npy array file with view candidates",
+                        default = "vcand_case2.npy")
 
 
 
 
 def main(config):
+
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     sess = tf.InteractiveSession(config=config_proto)

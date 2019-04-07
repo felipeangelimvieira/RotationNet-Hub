@@ -14,6 +14,13 @@ Asako Kanezaki, Yasuyuki Matsushita and Yoshifumi Nishida.
 ## Usage
 
 ```python
+
+from src.model import Model
+from src.trainer import Trainer
+from src.dataloader import Dataloader
+from src.logger import Logger
+from src.utils import Config
+
 config  = {"module_path": "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2",
            "train_images_path": "modelnet40v2png_ori4/*/train/*",
            "test_images_path": "modelnet40v2png_ori4/*/test/*",
@@ -34,6 +41,8 @@ config  = {"module_path": "https://tfhub.dev/google/imagenet/mobilenet_v2_100_22
            "decay_steps":  12000,
            "learning_rate": 0.00005 }
 
+#Model config
+config = Config(config)
 #Session config
 config_proto = tf.ConfigProto()
 config_proto.gpu_options.allow_growth = True

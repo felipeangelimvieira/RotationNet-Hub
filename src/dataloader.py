@@ -2,6 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import glob
+import os
 from sklearn.preprocessing import LabelEncoder
 
 def prepare_input_txt(directory, train = True):
@@ -24,10 +25,11 @@ def prepare_input_txt(directory, train = True):
     image_paths = glob.glob(directory)
     print(len(image_paths))
     image_paths = list(map(lambda s: os.path.abspath(s).replace("\\","/"), image_paths))
+    dirname = os.path.dirname(__file__)
     if train:
-        f = open("train_input.txt", "w")
+        f = open(os.path.join(dirname,"train_input.txt"), "w")
     else:
-        f = open("test_input.txt", "w")
+        f = open(os.path.join(dirname,"test_input.txt"), "w")
     
     f.write("\n".join(image_paths))
     f.close()
@@ -71,17 +73,13 @@ class Dataloader:
                 
         tf.set_random_seed(seed)
         
-        self.image_height, self.image_width = config["image_height"], config["image_width"]
+        self.image_height, self.image_width = config.image_height, config.image_width
         self.sess = sess
-        self.train_images_path = config["train_images_path"]
-        self.test_images_path = config["test_images_path"]
+        self.config = config
         self.shuffe_buffer_size = shuffle_buffer_size
         self.prefetch_buffer_size = prefetch_buffer_size
-        self.batch_size = config["batch_size"]
-        self.n_objects = config["batch_size"]
-        self.n_views = config["n_views"]
-        self.n_images = self.n_objects*self.n_views
-        self.epochs = config["epochs"]
+        self.n_objects = self.config.batch_size
+        self.n_images = self.n_objects*self.config.n_views
 
         self.get_image_path()
         self.build_pipeline()
@@ -91,11 +89,12 @@ class Dataloader:
         Creates train_input.txt and test_input.txt if they don't
         exist
         """
-        
-        if not os.path.isfile("train_input.txt"):
-            prepare_input_txt(self.train_images_path, True)
-        if not os.path.isfile("test_input.txt"):
-            prepare_input_txt(self.test_images_path, False)
+
+        dirname = os.path.dirname(__file__)
+        if not os.path.isfile(os.path.join(dirname,"train_input.txt")):
+            prepare_input_txt(self.config.train_images_path, True)
+        if not os.path.isfile(os.path.join(dirname,"test_input.txt")):
+            prepare_input_txt(self.config.test_images_path, False)
 
     def preprocess_dataset(self, dataset):
         """
@@ -119,11 +118,11 @@ class Dataloader:
             return image, label
 
         dataset = dataset.map(_parse_image_from_path)
-        dataset = dataset.batch(self.n_views)
-        dataset = dataset.repeat(self.epochs)
+        dataset = dataset.batch(self.config.n_views)
+        dataset = dataset.repeat(self.config.epochs)
         if self.shuffe_buffer_size > 0:
             dataset = dataset.shuffle(self.shuffe_buffer_size)
-        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.batch(self.config.batch_size)
         dataset = dataset.prefetch(self.prefetch_buffer_size)
         #TODO
         return dataset
@@ -165,10 +164,10 @@ class Dataloader:
             Shuffled images list
         """
 
-        assert(len(path_lines)%self.n_views == 0)
+        assert(len(path_lines)%self.config.n_views == 0)
 
         path_lines = np.array(path_lines)
-        path_lines = path_lines.reshape((-1,self.n_views))
+        path_lines = path_lines.reshape((-1,self.config.n_views))
         order = np.arange(len(path_lines))
         np.random.shuffle(order)
         
@@ -185,7 +184,8 @@ class Dataloader:
         """
 
         #Read file with labels for encoding
-        f_labels = open("labels.txt", "r")
+        dirname = os.path.dirname(__file__)
+        f_labels = open(os.path.join(dirname,"labels.txt"), "r")
         self.labels = np.unique(f_labels.read().splitlines())
         print(self.labels)
         self.n_classes = len(self.labels)
@@ -194,8 +194,8 @@ class Dataloader:
         f_labels.close()
 
         #Open text files with the paths to the images
-        f_train = open("train_input.txt","r")
-        f_test = open("test_input.txt","r")
+        f_train = open(os.path.join(dirname,"train_input.txt"),"r")
+        f_test = open(os.path.join(dirname,"test_input.txt"),"r")
         training_paths = f_train.read().splitlines()
         training_paths = self.shuffle_image_paths(training_paths)
         self.training_paths = training_paths

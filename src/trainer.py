@@ -10,12 +10,10 @@ class Trainer:
         self.data = data
         self.sess = sess
         self.logger = logger
-        self.epochs = config["epochs"]
-        self.warmup_epochs = config["warmup_epochs"]
-        self.batch_size = config["batch_size"]
-        self.iter_per_epoch = int(self.data.training_set_size/self.data.n_views/self.batch_size)
-        self.iter_per_epoch_test = int(self.data.testing_set_size/self.data.n_views/self.batch_size)
-        self.warmup_steps = self.warmup_epochs*self.iter_per_epoch
+        self.config = config
+        self.iter_per_epoch = int(self.data.training_set_size/self.config.n_views/self.config.batch_size)
+        self.iter_per_epoch_test = int(self.data.testing_set_size/self.config.n_views/self.config.batch_size)
+        self.warmup_steps = self.config.warmup_epochs*self.iter_per_epoch
 
     def train(self):
         
@@ -27,7 +25,7 @@ class Trainer:
             self.train_op = self.model.train_step
 
         self.sess.run(self.data.training_initializer)
-        for _ in range(self.epochs):
+        for _ in range(self.config.epochs):
             self.train_epoch()
             self.test()
             self.model.save(self.sess)
