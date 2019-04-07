@@ -21,13 +21,13 @@ argparser.add_argument("--batch_size", type = int, help = "Number of objects per
 argparser.add_argument("--n_views", type = int, help = "Number of views per object",
                         default= 20)
 argparser.add_argument("--warmup_epochs", type = float, help = "Number of epochs training only the last dense layer of RotationNet",
-                        default = 5)
+                        default = 3)
 argparser.add_argument("--warmup_learning_rate", type = float, help = "Learning rate during warmup epochs",
                         default= 0.01)
 argparser.add_argument("--epochs", type = int, help = "Number of total training epochs",
-                        default = 30)
+                        default = 50)
 argparser.add_argument("--learning_rate", type = float, help = "Learning rate",
-                        default = 0.0001)
+                        default = 0.00005)
 argparser.add_argument("--decay_steps", type = int, help = "Number of steps to decay the learning rate value",
                         default= 15000)
 argparser.add_argument("--decay_rate", type= float, help = "Learning rate decaying rate",
